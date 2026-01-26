@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Sky Wars Online</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body { background: #000; color: white; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: rgba(30, 30, 30, 0.95); padding: 30px; border-radius: 15px; text-align: center; width: 320px; z-index: 100; border: 2px solid #444; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border-radius: 5px; border: 1px solid #666; background: #111; color: #fff; font-size: 16px; }
+        button { width: 95%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .admin-section { margin-top: 25px; border-top: 1px dashed #555; padding-top: 15px; font-size: 13px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div class="login-box" id="login-screen">
+    <h1 style="margin-top:0;">Sky Wars</h1>
+    <input type="text" id="player-name" placeholder="プレイヤー名" maxlength="10">
+    <button onclick="startGame(false)">ゲーム開始</button>
+    
+    <div class="admin-section">
+        <p>▼ 管理者の方はこちら</p>
+        <input type="password" id="admin-pass" placeholder="管理者コード">
+        <button style="background: #e74c3c;" onclick="checkAdmin()">管理者としてログイン</button>
+    </div>
+</div>
+
+<script>
+    let myPlayer = { name: "", isAdmin: false };
+    let player, playerContainer, cursors, nameTag, stars;
+
+    // --- ログイン処理 ---
+    function checkAdmin() {
+        const pass = document.getElementById('admin-pass').value;
+        const nameInput = document.getElementById('player-name').value;
+        
+        // パスワード: 122552213924
+        if (pass.trim() === "122552213924") {
+            myPlayer.name = nameInput || "管理者";
+            myPlayer.isAdmin = true;
+            startGame(true);
+        } else {
+            alert("パスワードが違います。\n入力内容: [" + pass + "]");
+        }
+    }
+
+    function startGame(isAdminFlag) {
+        const nameInput = document.getElementById('player-name').value;
+        if (!isAdminFlag && !nameInput) return alert("名前を入力してください");
+        
+        if (!isAdminFlag) {
+            myPlayer.name = nameInput;
+            myPlayer.isAdmin = false;
+        }
+
+        document.getElementById('login-screen').style.display = 'none';
+        initGame();
+    }
+
+    // --- ゲーム本体 ---
+    function initGame() {
+        const config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+        new Phaser.Game(config);
+    }
+
+    function preload() {
+        // 飛行機のベース
+        this.load.image('ship-base', 'https://labs.phaser.io/assets/sprites/asteroids-ship.png');
+    }
+
+    function create() {
+        this.cameras.main.setBounds(0, 0, 3000, 3000);
+        this.physics.world.setBounds(0, 0, 3000, 3000);
+
+        // 背景の星
+        stars = this.add.graphics();
+        stars.fillStyle(0xffffff, 0.8);
+        for (let i = 0; i < 600; i++) {
+            stars.fillCircle(Phaser.Math.Between(0, 3000), Phaser.Math.Between(0, 3000), Phaser.Math.Between(1, 2.5));
+        }
+
+        // プレイヤーのコンテナ（ベース機体＋赤い先端をまとめる）
+        const shipBase = this.add.image(0, 0, 'ship-base');
+        
+        // 先端を赤くするための図形
+        const nose = this.add.graphics();
+        nose.fillStyle(0xff0000, 1);
+        // 三角形の先端部分を赤く塗りつぶす
+        nose.fillTriangle(10, -5, 10, 5, 20, 0); 
+
+        playerContainer = this.add.container(1500, 1500, [shipBase, nose]);
+        playerContainer.setSize(30, 30);
+        this.physics.world.enable(playerContainer);
+        
+        player = playerContainer.body;
+        player.setCollideWorldBounds(true);
+        player.setDrag(100);
+        player.setAngularDrag(150);
+        player.setMaxVelocity(400);
+
+        // 名前タグ
+        let label = myPlayer.name + (myPlayer.isAdmin ? " [管理者]" : "");
+        nameTag = this.add.text(0, 0, label, { 
+            fontSize: '16px', 
+            fill: myPlayer.isAdmin ? '#ff4444' : '#ffffff',
+            stroke: '#000',
+            strokeThickness: 3
+        });
+
+        this.cameras.main.startFollow(playerContainer, true, 0.05, 0.05);
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (!playerContainer) return;
+
+        // 加速
+        if (cursors.up.isDown) {
+            this.physics.velocityFromRotation(playerContainer.rotation, 300, player.acceleration);
+        } else {
+            player.setAcceleration(0);
+        }
+
+        // 旋回
+        if (cursors.left.isDown) {
+            player.setAngularVelocity(-220);
+        } else if (cursors.right.isDown) {
+            player.setAngularVelocity(220);
+        } else {
+            player.setAngularVelocity(0);
+        }
+
+        // 名前の位置更新
+        nameTag.x = playerContainer.x - (nameTag.width / 2);
+        nameTag.y = playerContainer.y - 50;
+    }
+</script>
+</body>
+</html>
