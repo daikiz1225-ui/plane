@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Sky Wars Online</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body { background: #000; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: rgba(30, 30, 30, 0.95); padding: 30px; border-radius: 15px; text-align: center; width: 320px; z-index: 100; color: white; border: 2px solid #444; }
+        input { width: 90%; padding: 12px; margin: 10px 0; background: #111; color: #fff; border: 1px solid #666; font-size: 16px; }
+        button { width: 95%; padding: 12px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="login-box" id="login-screen">
+    <h1>Sky Wars</h1>
+    <input type="text" id="player-name" placeholder="名前を入力">
+    <button type="button" onclick="startGame(false)">ゲーム開始</button>
+    <div style="margin-top:20px; border-top:1px solid #555; padding-top:10px;">
+        <input type="password" id="admin-pass" placeholder="管理者コード">
+        <button type="button" style="background: #e74c3c;" onclick="checkAdmin()">管理者ログイン</button>
+    </div>
+</div>
+
+<script>
+    let myPlayer = { name: "", isAdmin: false };
+    let player, cursors, nameTag;
+
+    function checkAdmin() {
+        const passField = document.getElementById('admin-pass');
+        const pass = passField.value.trim(); // 空白を自動削除
+        
+        console.log("入力されたパスワード:", pass); // デバッグ用
+
+        if (pass === "122552213924") {
+            myPlayer.name = document.getElementById('player-name').value || "管理者";
+            myPlayer.isAdmin = true;
+            startGame(true);
+        } else { 
+            alert("パスワードが違います。\n正しい文字数: 12文字\n入力された文字数: " + pass.length + "文字"); 
+        }
+    }
+
+    function startGame(isAdmin) {
+        const nameVal = document.getElementById('player-name').value;
+        if (!isAdmin && !nameVal) return alert("名前を入れてね");
+        if (!isAdmin) myPlayer.name = nameVal;
+        document.getElementById('login-screen').style.display = 'none';
+        initGame();
+    }
+
+    function initGame() {
+        const config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+        new Phaser.Game(config);
+    }
+
+    function preload() {}
+
+    function create() {
+        // マップは広く
+        this.cameras.main.setBounds(0, 0, 5000, 5000);
+        this.physics.world.setBounds(0, 0, 5000, 5000);
+
+        // --- 視野をでかくする (ズームアウト) ---
+        // 1.0が標準、0.7にするとより遠くまで見えます
+        this.cameras.main.setZoom(0.7);
+
+        // 星背景
+        let stars = this.add.graphics();
+        stars.fillStyle(0xffffff, 0.8);
+        for (let i = 0; i < 1500; i++) {
+            stars.fillCircle(Phaser.Math.Between(0, 5000), Phaser.Math.Between(0, 5000), Phaser.Math.Between(1, 3));
+        }
+
+        // 巨大な赤×緑ひし形
+        let graphics = this.make.graphics({ x: 0, y: 0, add: false });
+        graphics.fillStyle(0x00ff00, 1);
+        graphics.fillPoints([{x:0, y:40}, {x:60, y:0}, {x:60, y:80}], true);
+        graphics.fillStyle(0xff0000, 1);
+        graphics.fillPoints([{x:60, y:0}, {x:120, y:40}, {x:60, y:80}], true);
+        graphics.generateTexture('ship-diamond', 120, 80);
+
+        player = this.physics.add.sprite(2500, 2500, 'ship-diamond');
+        player.setCollideWorldBounds(true);
+        player.setDrag(150);
+        player.setAngularDrag(250);
+        player.setMaxVelocity(450);
+
+        let color = myPlayer.isAdmin ? '#ff0000' : '#ffffff';
+        nameTag = this.add.text(0, 0, myPlayer.name + (myPlayer.isAdmin ? " [管理者]" : ""), { 
+            fontSize: '32px', // 視野を広げたので文字も大きく
+            fill: color,
+            stroke: '#000',
+            strokeThickness: 5 
+        });
+
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (!player) return;
+
+        if (cursors.up.isDown) {
+            this.physics.velocityFromRotation(player.rotation, 400, player.body.acceleration);
+        } else {
+            player.setAcceleration(0);
+        }
+
+        if (cursors.left.isDown) {
+            player.setAngularVelocity(-250);
+        } else if (cursors.right.isDown) {
+            player.setAngularVelocity(250);
+        } else {
+            player.setAngularVelocity(0);
+        }
+
+        nameTag.x = player.x - (nameTag.width / 2);
+        nameTag.y = player.y - 120;
+    }
+</script>
+</body>
+</html>
