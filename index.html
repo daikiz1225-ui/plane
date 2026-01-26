@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Sky Wars Online</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>
+        body { background: #000; margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: rgba(30, 30, 30, 0.95); padding: 30px; border-radius: 15px; text-align: center; width: 320px; z-index: 100; color: white; border: 2px solid #444; }
+        input { width: 90%; padding: 12px; margin: 10px 0; background: #111; color: #fff; border: 1px solid #666; }
+        button { width: 95%; padding: 12px; background: #007bff; color: white; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="login-box" id="login-screen">
+    <h1>Sky Wars</h1>
+    <input type="text" id="player-name" placeholder="名前を入力">
+    <button onclick="startGame(false)">ゲーム開始</button>
+    <div style="margin-top:20px; border-top:1px solid #555; padding-top:10px;">
+        <input type="password" id="admin-pass" placeholder="管理者コード">
+        <button style="background: #e74c3c;" onclick="checkAdmin()">管理者ログイン</button>
+    </div>
+</div>
+
+<script>
+    let myPlayer = { name: "", isAdmin: false };
+    let player, cursors, nameTag;
+
+    function checkAdmin() {
+        const pass = document.getElementById('admin-pass').value;
+        if (pass.trim() === "122552213924") {
+            myPlayer.name = document.getElementById('player-name').value || "管理者";
+            myPlayer.isAdmin = true;
+            startGame(true);
+        } else { alert("パスワード違います"); }
+    }
+
+    function startGame(isAdmin) {
+        if (!isAdmin && !document.getElementById('player-name').value) return alert("名前入れてね");
+        if (!isAdmin) myPlayer.name = document.getElementById('player-name').value;
+        document.getElementById('login-screen').style.display = 'none';
+        initGame();
+    }
+
+    function initGame() {
+        const config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            physics: { default: 'arcade', arcade: { gravity: { y: 0 } } },
+            scene: { preload: preload, create: create, update: update }
+        };
+        new Phaser.Game(config);
+    }
+
+    function preload() {}
+
+    function create() {
+        this.cameras.main.setBounds(0, 0, 3000, 3000);
+        this.physics.world.setBounds(0, 0, 3000, 3000);
+
+        // 星背景
+        let stars = this.add.graphics();
+        stars.fillStyle(0xffffff, 0.8);
+        for (let i = 0; i < 600; i++) {
+            stars.fillCircle(Phaser.Math.Between(0, 3000), Phaser.Math.Between(0, 3000), Phaser.Math.Between(1, 2));
+        }
+
+        // --- 赤×緑のひし形テクスチャ作成 ---
+        let graphics = this.make.graphics({ x: 0, y: 0, add: false });
+        // 後ろ半分（緑）
+        graphics.fillStyle(0x00ff00, 1);
+        graphics.fillPoints([{x:0, y:20}, {x:30, y:0}, {x:30, y:40}], true);
+        // 前半分（赤）
+        graphics.fillStyle(0xff0000, 1);
+        graphics.fillPoints([{x:30, y:0}, {x:60, y:20}, {x:30, y:40}], true);
+        
+        graphics.generateTexture('ship-diamond', 60, 40);
+
+        // プレイヤー生成
+        player = this.physics.add.sprite(1500, 1500, 'ship-diamond');
+        player.setCollideWorldBounds(true);
+        player.setDrag(150);
+        player.setAngularDrag(250); // 回転のキレを良くしました
+        player.setMaxVelocity(400);
+
+        // 名前タグ
+        let color = myPlayer.isAdmin ? '#ff0000' : '#ffffff';
+        nameTag = this.add.text(0, 0, myPlayer.name + (myPlayer.isAdmin ? " [管理者]" : ""), { 
+            fontSize: '18px', 
+            fill: color,
+            stroke: '#000',
+            strokeThickness: 3 
+        });
+
+        this.cameras.main.startFollow(player, true, 0.1, 0.1);
+        cursors = this.input.keyboard.createCursorKeys();
+    }
+
+    function update() {
+        if (!player) return;
+
+        // 前進 (上キー)
+        if (cursors.up.isDown) {
+            this.physics.velocityFromRotation(player.rotation, 350, player.body.acceleration);
+        } else {
+            player.setAcceleration(0);
+        }
+
+        // 左右回転
+        if (cursors.left.isDown) {
+            player.setAngularVelocity(-250);
+        } else if (cursors.right.isDown) {
+            player.setAngularVelocity(250);
+        } else {
+            player.setAngularVelocity(0);
+        }
+
+        // 名前の位置更新
+        nameTag.x = player.x - (nameTag.width / 2);
+        nameTag.y = player.y - 65;
+    }
+</script>
+</body>
+</html>
